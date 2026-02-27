@@ -1,13 +1,10 @@
 name: 🤖 Build Android APK
 
 on:
-  # Auto build setiap push ke main/master
   push:
     branches: [main, master]
-  # Auto build setiap pull request
   pull_request:
     branches: [main, master]
-  # Manual trigger dari GitHub UI (Actions tab → Run workflow)
   workflow_dispatch:
     inputs:
       build_type:
@@ -27,10 +24,10 @@ jobs:
   build-apk:
     name: Build APK (${{ github.event.inputs.build_type || 'debug' }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
-      # ── 1. Checkout repo ──
+      # ── 1. Checkout ──
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
@@ -52,77 +49,115 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # ── 5. Install npm deps ──
-      - name: 📦 Install dependencies
+      # ── 5. Install npm deps (includes @capacitor-community/sqlite) ──
+      - name: 📦 Install npm dependencies
         run: npm ci
 
-      # ── 6. Build web assets (Vite) ──
+      # ── 6. Build web assets ──
       - name: 🔨 Build web (Vite)
         run: npm run build
 
-      # ── 7. Capacitor sync (copy web → android assets, update plugins) ──
+      # ── 7. Cap sync: generates capacitor-cordova-android-plugins + assets ──
       - name: 🔄 Capacitor sync Android
         run: npx cap sync android
 
-      # ── 8. Make gradlew executable ──
+      # ── 8. Verify critical generated files exist ──
+      - name: ✅ Verify generated files
+        run: |
+          echo "Checking generated Capacitor files..."
+          ls -la android/capacitor-cordova-android-plugins/ || echo "WARNING: capacitor-cordova-android-plugins missing"
+          ls -la android/app/src/main/assets/public/ | head -5 || echo "WARNING: web assets missing"
+          ls -la android/app/src/main/assets/capacitor.config.json || echo "WARNING: capacitor.config.json missing"
+          cat android/capacitor.settings.gradle
+
+      # ── 9. Make gradlew executable ──
       - name: 🔧 Make gradlew executable
         run: chmod +x android/gradlew
 
-      # ── 9a. Build DEBUG APK ──
+      # ── 10. Cache Gradle dependencies ──
+      - name: 📦 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # ── 11a. Build DEBUG APK ──
       - name: 🏗️ Build DEBUG APK
         if: ${{ github.event.inputs.build_type != 'release' }}
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: |
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 9b. Build RELEASE APK (signed) ──
-      - name: 🏗️ Build RELEASE APK
-        if: ${{ github.event.inputs.build_type == 'release' }}
+      # ── 11b. Build RELEASE APK (signed) ──
+      - name: 🏗️ Build RELEASE APK (signed)
+        if: ${{ github.event.inputs.build_type == 'release' && secrets.KEYSTORE_BASE64 != '' }}
         working-directory: android
         env:
-          KEYSTORE_BASE64:    ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD:  ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS:          ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD:       ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_BASE64:   ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
         run: |
-          # Decode keystore dari GitHub Secrets
           echo "$KEYSTORE_BASE64" | base64 --decode > app/gajiku-release.jks
-
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$PWD/app/gajiku-release.jks" \
             -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
-            --no-daemon --stacktrace
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 10. Upload DEBUG APK as artifact ──
+      # ── 11c. Build RELEASE APK (unsigned fallback) ──
+      - name: 🏗️ Build RELEASE APK (unsigned fallback)
+        if: ${{ github.event.inputs.build_type == 'release' && secrets.KEYSTORE_BASE64 == '' }}
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease \
+            --no-daemon \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      # ── 12. Find & display APK info ──
+      - name: 📋 APK Info
+        if: success()
+        run: |
+          APK=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          echo "APK: $APK"
+          echo "Size: $(du -sh $APK | cut -f1)"
+
+      # ── 13. Upload DEBUG APK ──
       - name: 📤 Upload DEBUG APK
-        if: ${{ github.event.inputs.build_type != 'release' }}
+        if: ${{ success() && github.event.inputs.build_type != 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: GAJIKU-debug-${{ github.run_number }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
+          if-no-files-found: error
 
-      # ── 11. Upload RELEASE APK as artifact ──
+      # ── 14. Upload RELEASE APK ──
       - name: 📤 Upload RELEASE APK
-        if: ${{ github.event.inputs.build_type == 'release' }}
+        if: ${{ success() && github.event.inputs.build_type == 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: GAJIKU-release-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: android/app/build/outputs/apk/release/app-release*.apk
           retention-days: 30
+          if-no-files-found: error
 
-      # ── 12. Summary ──
+      # ── 15. Summary ──
       - name: 📊 Build Summary
         if: always()
         run: |
           echo "## 📱 GAJIKU Android Build" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Info | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Type | ${{ github.event.inputs.build_type || 'debug' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Run Number | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⬇️ **Download APK dari tab Artifacts di atas**" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Type** | ${{ github.event.inputs.build_type || 'debug' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Run** | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
