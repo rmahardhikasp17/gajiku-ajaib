@@ -94,9 +94,9 @@ jobs:
             --stacktrace \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 11b. Build RELEASE APK (signed) ──
-      - name: 🏗️ Build RELEASE APK (signed)
-        if: ${{ github.event.inputs.build_type == 'release' && secrets.KEYSTORE_BASE64 != '' }}
+      # ── 11b. Build RELEASE APK (signed or unsigned) ──
+      - name: 🏗️ Build RELEASE APK
+        if: ${{ github.event.inputs.build_type == 'release' }}
         working-directory: android
         env:
           KEYSTORE_BASE64:   ${{ secrets.KEYSTORE_BASE64 }}
@@ -104,23 +104,22 @@ jobs:
           KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > app/gajiku-release.jks
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file="$PWD/app/gajiku-release.jks" \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
-            --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
-
-      # ── 11c. Build RELEASE APK (unsigned fallback) ──
-      - name: 🏗️ Build RELEASE APK (unsigned fallback)
-        if: ${{ github.event.inputs.build_type == 'release' && secrets.KEYSTORE_BASE64 == '' }}
-        working-directory: android
-        run: |
-          ./gradlew assembleRelease \
-            --no-daemon \
-            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "🔐 Building SIGNED release APK..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/gajiku-release.jks
+            ./gradlew assembleRelease \
+              -Pandroid.injected.signing.store.file="$PWD/app/gajiku-release.jks" \
+              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+              -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
+              --no-daemon \
+              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+          else
+            echo "⚠️ No keystore found, building UNSIGNED release APK..."
+            ./gradlew assembleRelease \
+              --no-daemon \
+              -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+          fi
 
       # ── 12. Find & display APK info ──
       - name: 📋 APK Info
