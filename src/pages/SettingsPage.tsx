@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { exportData, importData } from '@/services/storage';
+import { exportData, importData } from '@/services/database';  // ← updated to database.ts
 import { hashPin } from '@/components/PinLock';
 import {
   User, Palette, Lock, Download, Upload, Moon, Sun, Monitor,
@@ -25,7 +25,7 @@ const CURRENCIES = [
 ];
 
 const SettingsPage = () => {
-  const { settings, update } = useSettings();
+  const { settings, loading, update } = useSettings();
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,24 +41,24 @@ const SettingsPage = () => {
 
   // Theme
   useEffect(() => {
+    if (loading) return;
     const root = document.documentElement;
     if (settings.theme === 'dark') {
       root.classList.add('dark');
     } else if (settings.theme === 'light') {
       root.classList.remove('dark');
     } else {
-      // system
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       root.classList.toggle('dark', prefersDark);
     }
-  }, [settings.theme]);
+  }, [settings.theme, loading]);
 
   const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
     update({ theme });
   };
 
-  const handleExport = () => {
-    const data = exportData();
+  const handleExport = async () => {
+    const data = await exportData();
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -73,9 +73,10 @@ const SettingsPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const json = ev.target?.result as string;
-      if (importData(json)) {
+      const ok = await importData(json);
+      if (ok) {
         toast({ title: 'Berhasil!', description: 'Data berhasil diimpor. Halaman akan dimuat ulang.' });
         setTimeout(() => window.location.reload(), 1500);
       } else {
@@ -97,14 +98,14 @@ const SettingsPage = () => {
     setPinDialogOpen(true);
   };
 
-  const handlePinSubmit = () => {
+  const handlePinSubmit = async () => {
     if (pinStep === 'current') {
       if (hashPin(currentPin) !== settings.pinHash) {
         setPinError('PIN lama salah');
         return;
       }
       if (pinMode === 'disable') {
-        update({ pinEnabled: false, pinHash: null });
+        await update({ pinEnabled: false, pinHash: null });
         setPinDialogOpen(false);
         toast({ title: 'PIN Dinonaktifkan', description: 'Kunci PIN telah dinonaktifkan' });
         return;
@@ -127,7 +128,7 @@ const SettingsPage = () => {
         setPinError('PIN tidak cocok');
         return;
       }
-      update({ pinEnabled: true, pinHash: hashPin(newPin) });
+      await update({ pinEnabled: true, pinHash: hashPin(newPin) });
       setPinDialogOpen(false);
       toast({
         title: pinMode === 'setup' ? 'PIN Aktif!' : 'PIN Diubah!',
@@ -136,8 +137,13 @@ const SettingsPage = () => {
     }
   };
 
-  const themeIcon = settings.theme === 'dark' ? Moon : settings.theme === 'light' ? Sun : Monitor;
-  const ThemeIcon = themeIcon;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -278,7 +284,7 @@ const SettingsPage = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Download className="h-4 w-4 text-primary" /> Backup & Restore
+              <Download className="h-4 w-4 text-primary" /> Backup &amp; Restore
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">

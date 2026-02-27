@@ -5,11 +5,11 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/lib/format';
 import BudgetCard from '@/components/BudgetCard';
 import AddBudgetModal from '@/components/AddBudgetModal';
-import { Budget } from '@/types/models';
+import { Budget, CategoryIcon as CategoryIconType } from '@/types/models';
 
 const BudgetPage = () => {
-  const { budgets, add, update, remove, computeSpent } = useBudgets();
-  const { transactions } = useTransactions();
+  const { budgets, loading: budgetsLoading, add, update, remove, computeSpent } = useBudgets();
+  const { transactions, loading: txLoading } = useTransactions();
   const [showAdd, setShowAdd] = useState(false);
   const [editBudget, setEditBudget] = useState<Budget | null>(null);
 
@@ -21,11 +21,17 @@ const BudgetPage = () => {
   const totalPercent = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
   const overBudgetCount = budgetsWithSpent.filter(b => b.spent >= b.limit).length;
 
-  const handleSave = (data: { category: any; label: string; limit: number; period: any; color: string }) => {
+  const handleSave = async (data: {
+    category: CategoryIconType;
+    label: string;
+    limit: number;
+    period: 'weekly' | 'monthly' | 'yearly';
+    color: string;
+  }) => {
     if (editBudget) {
-      update(editBudget.id, data);
+      await update(editBudget.id, data);
     } else {
-      add(data);
+      await add(data);
     }
     setEditBudget(null);
   };
@@ -39,6 +45,14 @@ const BudgetPage = () => {
     setShowAdd(false);
     setEditBudget(null);
   };
+
+  if (budgetsLoading || txLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -57,14 +71,20 @@ const BudgetPage = () => {
             )}
           </div>
           <p className="text-primary-foreground text-xl font-extrabold">
-            {formatCurrency(totalSpent)} <span className="text-sm font-normal text-primary-foreground/60">/ {formatCurrency(totalBudget)}</span>
+            {formatCurrency(totalSpent)}{' '}
+            <span className="text-sm font-normal text-primary-foreground/60">/ {formatCurrency(totalBudget)}</span>
           </p>
           <div className="mt-3 h-2 w-full rounded-full bg-primary-foreground/20 overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${totalPercent}%`,
-                backgroundColor: totalPercent >= 100 ? 'hsl(0, 84%, 60%)' : totalPercent >= 80 ? 'hsl(38, 92%, 50%)' : 'hsl(142, 71%, 45%)',
+                backgroundColor:
+                  totalPercent >= 100
+                    ? 'hsl(0, 84%, 60%)'
+                    : totalPercent >= 80
+                    ? 'hsl(38, 92%, 50%)'
+                    : 'hsl(142, 71%, 45%)',
               }}
             />
           </div>
@@ -82,12 +102,7 @@ const BudgetPage = () => {
           </div>
         ) : (
           budgetsWithSpent.map(b => (
-            <BudgetCard
-              key={b.id}
-              budget={b}
-              onEdit={handleEdit}
-              onDelete={remove}
-            />
+            <BudgetCard key={b.id} budget={b} onEdit={handleEdit} onDelete={remove} />
           ))
         )}
       </div>

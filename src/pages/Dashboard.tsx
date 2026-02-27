@@ -9,12 +9,20 @@ import AddTransactionModal from '@/components/AddTransactionModal';
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { transactions, add, totalIncome, totalExpense, balance } = useTransactions();
+  const { transactions, loading, add, totalIncome, totalExpense, balance } = useTransactions();
   const { unreadCount } = useNotifications();
   const [showAdd, setShowAdd] = useState(false);
 
   const recentTransactions = transactions.slice(0, 5);
   const currentMonth = getMonthYear(new Date().toISOString());
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

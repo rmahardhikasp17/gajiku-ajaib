@@ -1,0 +1,20 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force LF for shell scripts (must not have CRLF for unix)
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Force CRLF for Windows batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files — no conversion
+*.png binary
+*.jpg binary
+*.ico binary
+*.wasm binary
+*.apk binary
+*.aar binary
+*.jks binary
+*.keystore binary

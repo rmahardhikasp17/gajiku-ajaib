@@ -1,44 +1,51 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { SavingsGoal } from '@/types/models';
-import * as storage from '@/services/storage';
+import * as database from '@/services/database';
 
 export function useSavings() {
-  const [goals, setGoals] = useState<SavingsGoal[]>(storage.getSavingsGoals());
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(() => setGoals(storage.getSavingsGoals()), []);
+  const refresh = useCallback(async () => {
+    const data = await database.getSavingsGoals();
+    setGoals(data);
+    setLoading(false);
+  }, []);
 
-  const add = useCallback((g: Omit<SavingsGoal, 'id' | 'createdAt' | 'currentAmount'>) => {
-    const newG = storage.addSavingsGoal(g);
-    refresh();
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const add = useCallback(async (g: Omit<SavingsGoal, 'id' | 'createdAt' | 'currentAmount'>) => {
+    const newG = await database.addSavingsGoal(g);
+    await refresh();
     return newG;
   }, [refresh]);
 
-  const update = useCallback((id: string, updates: Partial<SavingsGoal>) => {
-    const result = storage.updateSavingsGoal(id, updates);
-    refresh();
+  const update = useCallback(async (id: string, updates: Partial<SavingsGoal>) => {
+    const result = await database.updateSavingsGoal(id, updates);
+    await refresh();
     return result;
   }, [refresh]);
 
-  const deposit = useCallback((id: string, amount: number) => {
-    const result = storage.depositToGoal(id, amount);
-    refresh();
+  const deposit = useCallback(async (id: string, amount: number) => {
+    const result = await database.depositToGoal(id, amount);
+    await refresh();
     return result;
   }, [refresh]);
 
-  const withdraw = useCallback((id: string, amount: number) => {
-    const result = storage.withdrawFromGoal(id, amount);
-    refresh();
+  const withdraw = useCallback(async (id: string, amount: number) => {
+    const result = await database.withdrawFromGoal(id, amount);
+    await refresh();
     return result;
   }, [refresh]);
 
-  const remove = useCallback((id: string) => {
-    const result = storage.deleteSavingsGoal(id);
-    refresh();
+  const remove = useCallback(async (id: string) => {
+    const result = await database.deleteSavingsGoal(id);
+    await refresh();
     return result;
   }, [refresh]);
 
   const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
   const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
 
-  return { goals, add, update, deposit, withdraw, remove, refresh, totalSaved, totalTarget };
+  return { goals, loading, add, update, deposit, withdraw, remove, refresh, totalSaved, totalTarget };
 }

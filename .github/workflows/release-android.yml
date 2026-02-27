@@ -1,0 +1,136 @@
+name: 🚀 Release APK
+
+on:
+  # Trigger saat push tag: git tag v1.0.0 && git push --tags
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+
+jobs:
+  release:
+    name: 🏷️ Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write   # Butuh untuk create GitHub Release
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      # Extract version dari tag (v1.2.3 → 1.2.3)
+      - name: 🏷️ Extract version
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          # versionCode: major*10000 + minor*100 + patch  (e.g. 1.2.3 → 10203)
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          CODE=$(( major * 10000 + minor * 100 + patch ))
+          echo "code=$CODE" >> $GITHUB_OUTPUT
+          echo "🏷️ Version: $VERSION ($CODE)"
+
+      # Update versionName & versionCode di build.gradle
+      - name: 📝 Update versionCode & versionName
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ steps.version.outputs.code }}/" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"${{ steps.version.outputs.version }}\"/" android/app/build.gradle
+          echo "✅ Updated build.gradle:"
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: 🔨 Build web
+        run: npm run build
+
+      - name: 🔄 Cap sync Android
+        run: npx cap sync android
+
+      - name: 🔧 Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # Build unsigned release (jika tidak ada keystore)
+      - name: 🏗️ Build Release APK (unsigned)
+        if: ${{ secrets.KEYSTORE_BASE64 == '' }}
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+
+      # Build signed release (jika keystore ada di secrets)
+      - name: 🏗️ Build Release APK (signed)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        working-directory: android
+        env:
+          KEYSTORE_BASE64:    ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD:  ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS:          ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:       ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/gajiku-release.jks
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$PWD/app/gajiku-release.jks" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD" \
+            --no-daemon
+
+      # Rename APK dengan versi
+      - name: 📋 Rename APK
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk -name "*.apk" | head -1)
+          FINAL_NAME="GAJIKU-${{ steps.version.outputs.version }}.apk"
+          cp "$APK_PATH" "$FINAL_NAME"
+          echo "apk_path=$FINAL_NAME" >> $GITHUB_ENV
+          echo "✅ APK: $FINAL_NAME ($(du -sh $FINAL_NAME | cut -f1))"
+
+      # Buat GitHub Release + upload APK
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "GAJIKU ${{ steps.version.outputs.version }}"
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 📱 GAJIKU ${{ steps.version.outputs.version }}
+
+            ### ⬇️ Download
+            Klik file **GAJIKU-${{ steps.version.outputs.version }}.apk** di bawah untuk download.
+
+            ### 📲 Cara Install di Android
+            1. Download file APK
+            2. Di HP: **Setelan → Keamanan → Izinkan sumber tidak dikenal**
+            3. Buka file APK → Install
+            4. Buka GAJIKU ✅
+
+            ### 📋 Info Build
+            - Version Code: `${{ steps.version.outputs.code }}`
+            - Commit: `${{ github.sha }}`
+            - Build: `#${{ github.run_number }}`
+
+            ### ✨ Changelog
+            > Update changelog di sini sebelum push tag
+
+          files: ${{ env.apk_path }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

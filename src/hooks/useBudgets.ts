@@ -1,31 +1,38 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Budget, Transaction } from '@/types/models';
-import * as storage from '@/services/storage';
+import * as database from '@/services/database';
 
 export function useBudgets() {
-  const [budgets, setBudgets] = useState<Budget[]>(storage.getBudgets());
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(() => setBudgets(storage.getBudgets()), []);
+  const refresh = useCallback(async () => {
+    const data = await database.getBudgets();
+    setBudgets(data);
+    setLoading(false);
+  }, []);
 
-  const add = useCallback((b: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => {
-    const newB = storage.addBudget(b);
-    refresh();
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const add = useCallback(async (b: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => {
+    const newB = await database.addBudget(b);
+    await refresh();
     return newB;
   }, [refresh]);
 
-  const update = useCallback((id: string, updates: Partial<Budget>) => {
-    const result = storage.updateBudget(id, updates);
-    refresh();
+  const update = useCallback(async (id: string, updates: Partial<Budget>) => {
+    const result = await database.updateBudget(id, updates);
+    await refresh();
     return result;
   }, [refresh]);
 
-  const remove = useCallback((id: string) => {
-    const result = storage.deleteBudget(id);
-    refresh();
+  const remove = useCallback(async (id: string) => {
+    const result = await database.deleteBudget(id);
+    await refresh();
     return result;
   }, [refresh]);
 
-  // Compute spent from transactions
+  // Compute spent from transactions (same logic, just used with existing data)
   const computeSpent = useCallback((transactions: Transaction[]): Budget[] => {
     const expenses = transactions.filter(t => t.type === 'expense');
     return budgets.map(b => ({
@@ -37,5 +44,5 @@ export function useBudgets() {
   const totalBudget = budgets.reduce((s, b) => s + b.limit, 0);
   const totalSpent = budgets.reduce((s, b) => s + b.spent, 0);
 
-  return { budgets, add, update, remove, refresh, computeSpent, totalBudget, totalSpent };
+  return { budgets, loading, add, update, remove, refresh, computeSpent, totalBudget, totalSpent };
 }

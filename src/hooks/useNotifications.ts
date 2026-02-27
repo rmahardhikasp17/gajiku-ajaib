@@ -1,34 +1,41 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Notification } from '@/types/models';
-import * as storage from '@/services/storage';
+import * as database from '@/services/database';
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<Notification[]>(storage.getNotifications());
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const refresh = useCallback(() => setNotifications(storage.getNotifications()), []);
+  const refresh = useCallback(async () => {
+    const data = await database.getNotifications();
+    setNotifications(data);
+    setLoading(false);
+  }, []);
 
-  const add = useCallback((n: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
-    const newN = storage.addNotification(n);
-    refresh();
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const add = useCallback(async (n: Omit<Notification, 'id' | 'createdAt' | 'read'>) => {
+    const newN = await database.addNotification(n);
+    await refresh();
     return newN;
   }, [refresh]);
 
-  const markRead = useCallback((id: string) => {
-    storage.markNotificationRead(id);
-    refresh();
+  const markRead = useCallback(async (id: string) => {
+    await database.markNotificationRead(id);
+    await refresh();
   }, [refresh]);
 
-  const markAllRead = useCallback(() => {
-    storage.markAllNotificationsRead();
-    refresh();
+  const markAllRead = useCallback(async () => {
+    await database.markAllNotificationsRead();
+    await refresh();
   }, [refresh]);
 
-  const remove = useCallback((id: string) => {
-    storage.deleteNotification(id);
-    refresh();
+  const remove = useCallback(async (id: string) => {
+    await database.deleteNotification(id);
+    await refresh();
   }, [refresh]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  return { notifications, add, markRead, markAllRead, remove, refresh, unreadCount };
+  return { notifications, loading, add, markRead, markAllRead, remove, refresh, unreadCount };
 }

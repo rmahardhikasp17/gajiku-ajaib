@@ -15,9 +15,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Wallet, CalendarDays } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -50,7 +49,7 @@ const PIE_COLORS = [
 ];
 
 const ReportPage = () => {
-  const { transactions } = useTransactions();
+  const { transactions, loading } = useTransactions();
   const [period, setPeriod] = useState<Period>('monthly');
 
   const filtered = useMemo(() => filterByPeriod(transactions, period), [transactions, period]);
@@ -59,7 +58,6 @@ const ReportPage = () => {
   const totalExpense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
-  // Pie chart data - expense by category
   const pieData = useMemo(() => {
     const expenses = filtered.filter(t => t.type === 'expense');
     const catMap = new Map<string, number>();
@@ -72,7 +70,6 @@ const ReportPage = () => {
       .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
-  // Bar chart data - income vs expense (last 6 periods)
   const barData = useMemo(() => {
     const now = new Date();
     const result: { name: string; income: number; expense: number }[] = [];
@@ -90,7 +87,6 @@ const ReportPage = () => {
     return result;
   }, [transactions]);
 
-  // Category stats
   const categoryStats = useMemo(() => {
     const total = pieData.reduce((s, d) => s + d.value, 0);
     return pieData.map(d => ({
@@ -99,6 +95,14 @@ const ReportPage = () => {
       cat: CATEGORIES.find(c => c.id === d.catId),
     }));
   }, [pieData]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

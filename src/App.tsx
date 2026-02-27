@@ -13,26 +13,59 @@ import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 import BottomNav from "./components/BottomNav";
 import PinLock from "./components/PinLock";
-import { getSettings } from "./services/storage";
+import { PWAUpdateBanner, PWAInstallBanner } from "./components/PWAPrompts";
+import { useSettings } from "./hooks/useSettings";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
+  const { settings, loading } = useSettings();
   const [locked, setLocked] = useState(false);
+  const [checkedPin, setCheckedPin] = useState(false);
 
   useEffect(() => {
-    const settings = getSettings();
-    if (settings.pinEnabled && settings.pinHash) {
-      setLocked(true);
+    if (!loading) {
+      if (settings.pinEnabled && settings.pinHash) {
+        setLocked(true);
+      }
+      setCheckedPin(true);
     }
-  }, []);
+  }, [loading, settings.pinEnabled, settings.pinHash]);
+
+  // Terapkan tema ke document
+  useEffect(() => {
+    if (loading) return;
+    const root = document.documentElement;
+    if (settings.theme === 'dark') {
+      root.classList.add('dark');
+    } else if (settings.theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+    }
+  }, [settings.theme, loading]);
+
+  if (loading || !checkedPin) {
+    return (
+      <div className="mx-auto max-w-md min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Memuat GAJIKU...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (locked) {
     return <PinLock onUnlock={() => setLocked(false)} />;
   }
 
   return (
-    <div className="mx-auto max-w-md min-h-screen bg-background">
+    <div className="mx-auto max-w-md min-h-screen bg-background relative">
+      {/* PWA banners */}
+      <PWAUpdateBanner />
+
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/budget" element={<BudgetPage />} />
@@ -42,7 +75,11 @@ const AppContent = () => {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+
       <BottomNav />
+
+      {/* Install prompt */}
+      <PWAInstallBanner />
     </div>
   );
 };

@@ -13,8 +13,16 @@ const typeConfig: Record<Notification['type'], { icon: typeof Bell; color: strin
 };
 
 const NotificationsPage = () => {
-  const { notifications, markRead, markAllRead, remove, unreadCount } = useNotifications();
+  const { notifications, loading, markRead, markAllRead, remove, unreadCount } = useNotifications();
   const navigate = useNavigate();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

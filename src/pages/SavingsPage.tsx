@@ -10,18 +10,18 @@ import DepositWithdrawModal from '@/components/DepositWithdrawModal';
 import { toast } from '@/hooks/use-toast';
 
 const SavingsPage = () => {
-  const { goals, add, deposit, withdraw, remove, totalSaved, totalTarget } = useSavings();
+  const { goals, loading, add, deposit, withdraw, remove, totalSaved, totalTarget } = useSavings();
   const { add: addNotification } = useNotifications();
   const [showAdd, setShowAdd] = useState(false);
   const [activeGoal, setActiveGoal] = useState<SavingsGoal | null>(null);
 
   const totalPercent = totalTarget > 0 ? Math.min((totalSaved / totalTarget) * 100, 100) : 0;
 
-  const handleDeposit = (amount: number) => {
+  const handleDeposit = async (amount: number) => {
     if (!activeGoal) return;
-    const updated = deposit(activeGoal.id, amount);
+    const updated = await deposit(activeGoal.id, amount);
     if (updated && updated.currentAmount >= updated.targetAmount) {
-      addNotification({
+      await addNotification({
         title: '🎉 Target Tercapai!',
         message: `Selamat! Target "${updated.name}" berhasil tercapai!`,
         type: 'success',
@@ -34,11 +34,19 @@ const SavingsPage = () => {
     setActiveGoal(null);
   };
 
-  const handleWithdraw = (amount: number) => {
+  const handleWithdraw = async (amount: number) => {
     if (!activeGoal) return;
-    withdraw(activeGoal.id, amount);
+    await withdraw(activeGoal.id, amount);
     setActiveGoal(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-24">
+        <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
