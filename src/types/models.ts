@@ -48,6 +48,7 @@ export interface Notification {
 }
 
 export interface AppSettings {
+  userName: string;
   currency: string;
   language: 'id' | 'en';
   theme: 'light' | 'dark' | 'system';
@@ -93,6 +94,7 @@ export const CATEGORIES: CategoryMeta[] = [
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  userName: 'Pengguna',
   currency: 'IDR',
   language: 'id',
   theme: 'light',
