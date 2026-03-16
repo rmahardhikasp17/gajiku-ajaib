@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Share,
   PlusSquare,
+  Package,
 } from 'lucide-react';
 import { usePlatformDetect } from '@/hooks/usePlatformDetect';
 
@@ -383,7 +384,7 @@ const LandingPage = () => {
             <InstallCard
               icon={Smartphone}
               title="Android"
-              subtitle="Chrome / Browser"
+              subtitle="APK / Chrome"
               steps={[
                 'Buka GAJIKU di Chrome',
                 'Tap "Add to Home Screen" pada banner',
@@ -392,6 +393,7 @@ const LandingPage = () => {
               isActive={platform === 'android'}
               canInstall={platform === 'android' && !!installEvent}
               onInstall={triggerInstall}
+              apkDownloadUrl="/gajiku.apk"
             />
 
             {/* iOS */}
@@ -471,6 +473,7 @@ function InstallCard({
   canInstall,
   onInstall,
   iosSteps,
+  apkDownloadUrl,
 }: {
   icon: React.ElementType;
   title: string;
@@ -480,6 +483,7 @@ function InstallCard({
   canInstall: boolean;
   onInstall: () => Promise<boolean>;
   iosSteps?: boolean;
+  apkDownloadUrl?: string;
 }) {
   const { ref, inView } = useInView();
 
@@ -507,6 +511,31 @@ function InstallCard({
           <p className="text-xs text-slate-500">{subtitle}</p>
         </div>
       </div>
+
+      {/* APK Download Option */}
+      {apkDownloadUrl && (
+        <div className="mb-5">
+          <a
+            href={apkDownloadUrl}
+            download
+            id="download-apk-btn"
+            className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 active:scale-[0.98]"
+          >
+            <Package className="h-5 w-5 transition-transform group-hover:scale-110" />
+            Download APK
+          </a>
+          <p className="mt-2 text-center text-[11px] text-slate-500">
+            Versi aplikasi Android • Install langsung tanpa Play Store
+          </p>
+
+          {/* Divider */}
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[11px] font-medium text-slate-600 uppercase tracking-wider">atau install via browser</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3 mb-5">
         {steps.map((step, i) => (
@@ -554,6 +583,10 @@ function InstallCard({
             Install Sekarang
           </span>
         </button>
+      ) : apkDownloadUrl ? (
+        <div className="w-full rounded-xl bg-white/5 py-3 text-center text-sm font-medium text-slate-500">
+          Gunakan APK di atas atau ikuti langkah PWA
+        </div>
       ) : (
         <div className="w-full rounded-xl bg-white/5 py-3 text-center text-sm font-medium text-slate-500">
           {isActive ? 'Ikuti langkah di atas' : 'Buka di perangkat ini'}
