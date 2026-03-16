@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CATEGORIES, CategoryIcon as CategoryIconType, Budget } from '@/types/models';
+import { CATEGORIES, CategoryIcon as CategoryIconType, Budget, nowMs } from '@/types/models';
 import CategoryIconComponent from '@/components/CategoryIcon';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,7 @@ const expenseCategories = CATEGORIES.filter(c => c.type === 'expense');
 interface AddBudgetModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { category: CategoryIconType; label: string; limit: number; period: 'weekly' | 'monthly' | 'yearly'; color: string }) => void;
+  onSave: (data: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => void;
   editBudget?: Budget | null;
 }
 
@@ -33,6 +33,9 @@ const AddBudgetModal = ({ open, onClose, onSave, editBudget }: AddBudgetModalPro
       limit: parseFloat(limit),
       period,
       color: cat.color,
+      updatedAt: nowMs(),
+      deletedAt: null,
+      isDirty: true,
     });
     setCategory('');
     setLimit('');

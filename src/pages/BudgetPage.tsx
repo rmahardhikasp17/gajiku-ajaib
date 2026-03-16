@@ -5,7 +5,7 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { formatCurrency } from '@/lib/format';
 import BudgetCard from '@/components/BudgetCard';
 import AddBudgetModal from '@/components/AddBudgetModal';
-import { Budget, CategoryIcon as CategoryIconType } from '@/types/models';
+import { Budget } from '@/types/models';
 
 const BudgetPage = () => {
   const { budgets, loading: budgetsLoading, add, update, remove, computeSpent } = useBudgets();
@@ -21,13 +21,7 @@ const BudgetPage = () => {
   const totalPercent = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
   const overBudgetCount = budgetsWithSpent.filter(b => b.spent >= b.limit).length;
 
-  const handleSave = async (data: {
-    category: CategoryIconType;
-    label: string;
-    limit: number;
-    period: 'weekly' | 'monthly' | 'yearly';
-    color: string;
-  }) => {
+  const handleSave = async (data: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => {
     if (editBudget) {
       await update(editBudget.id, data);
     } else {

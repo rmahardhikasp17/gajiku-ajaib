@@ -3,7 +3,7 @@ import { Plus, Target } from 'lucide-react';
 import { useSavings } from '@/hooks/useSavings';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatCurrency } from '@/lib/format';
-import { SavingsGoal } from '@/types/models';
+import { SavingsGoal, nowMs } from '@/types/models';
 import SavingsCard from '@/components/SavingsCard';
 import AddSavingsModal from '@/components/AddSavingsModal';
 import DepositWithdrawModal from '@/components/DepositWithdrawModal';
@@ -25,6 +25,9 @@ const SavingsPage = () => {
         title: '🎉 Target Tercapai!',
         message: `Selamat! Target "${updated.name}" berhasil tercapai!`,
         type: 'success',
+        updatedAt: nowMs(),
+        deletedAt: null,
+        isDirty: true,
       });
       toast({
         title: '🎉 Target Tercapai!',

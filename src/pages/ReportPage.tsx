@@ -75,9 +75,11 @@ const ReportPage = () => {
     const result: { name: string; income: number; expense: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = new Intl.DateTimeFormat('id-ID', { month: 'short' }).format(d);
-      const monthTxs = transactions.filter(t => t.date.startsWith(key));
+      const monthTxs = transactions.filter(t => {
+        const td = new Date(t.date);
+        return td.getFullYear() === d.getFullYear() && td.getMonth() === d.getMonth();
+      });
       result.push({
         name: label,
         income: monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),

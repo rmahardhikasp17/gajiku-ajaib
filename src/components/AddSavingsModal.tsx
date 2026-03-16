@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SavingsGoal, nowMs } from '@/types/models';
 
 const GOAL_ICONS = ['🏠', '🚗', '✈️', '💻', '📱', '🎓', '💍', '🏥', '👶', '🎯', '💰', '🛒'];
 
 interface AddSavingsModalProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { name: string; targetAmount: number; deadline: string; icon: string }) => void;
+  onSave: (data: Omit<SavingsGoal, 'id' | 'createdAt' | 'currentAmount'>) => void;
 }
 
 const AddSavingsModal = ({ open, onClose, onSave }: AddSavingsModalProps) => {
@@ -23,8 +24,12 @@ const AddSavingsModal = ({ open, onClose, onSave }: AddSavingsModalProps) => {
     onSave({
       name,
       targetAmount: parseFloat(target),
-      deadline: new Date(deadline).toISOString(),
+      deadline: new Date(deadline).getTime(),
       icon,
+      isCompleted: false,
+      updatedAt: nowMs(),
+      deletedAt: null,
+      isDirty: true,
     });
     setName('');
     setTarget('');

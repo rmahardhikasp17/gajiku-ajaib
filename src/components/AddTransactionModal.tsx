@@ -4,20 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { CATEGORIES, TransactionType, CategoryIcon as CategoryIconType } from '@/types/models';
+import { CATEGORIES, TransactionType, CategoryIcon as CategoryIconType, Transaction, nowMs } from '@/types/models';
 import CategoryIconComponent from '@/components/CategoryIcon';
 import { cn } from '@/lib/utils';
 
 interface AddTransactionModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (data: {
-    type: TransactionType;
-    amount: number;
-    category: CategoryIconType;
-    note: string;
-    date: string;
-  }) => void;
+  onAdd: (data: Omit<Transaction, 'id' | 'createdAt'>) => void;
 }
 
 const AddTransactionModal = ({ open, onClose, onAdd }: AddTransactionModalProps) => {
@@ -36,7 +30,10 @@ const AddTransactionModal = ({ open, onClose, onAdd }: AddTransactionModalProps)
       amount: parseFloat(amount),
       category: category as CategoryIconType,
       note,
-      date: new Date(date).toISOString(),
+      date: new Date(date).getTime(),
+      updatedAt: nowMs(),
+      deletedAt: null,
+      isDirty: true,
     });
     // Reset
     setAmount('');
