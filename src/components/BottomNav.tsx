@@ -3,11 +3,11 @@ import { Home, PieChart, Target, BarChart3, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/', label: 'Beranda', icon: Home },
-  { path: '/budget', label: 'Anggaran', icon: PieChart },
-  { path: '/savings', label: 'Tabungan', icon: Target },
-  { path: '/report', label: 'Laporan', icon: BarChart3 },
-  { path: '/settings', label: 'Pengaturan', icon: Settings },
+  { path: '/app', label: 'Beranda', icon: Home },
+  { path: '/app/budget', label: 'Anggaran', icon: PieChart },
+  { path: '/app/savings', label: 'Tabungan', icon: Target },
+  { path: '/app/report', label: 'Laporan', icon: BarChart3 },
+  { path: '/app/settings', label: 'Pengaturan', icon: Settings },
 ];
 
 const BottomNav = () => {

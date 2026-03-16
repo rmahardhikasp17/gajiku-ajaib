@@ -10,6 +10,7 @@ import SavingsPage from "./pages/SavingsPage";
 import ReportPage from "./pages/ReportPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import BottomNav from "./components/BottomNav";
 import PinLock from "./components/PinLock";
@@ -18,6 +19,7 @@ import { useSettings } from "./hooks/useSettings";
 
 const queryClient = new QueryClient();
 
+/** Main application shell — loaded only for /app/* routes */
 const AppContent = () => {
   const { settings, loading } = useSettings();
   const [locked, setLocked] = useState(false);
@@ -67,6 +69,7 @@ const AppContent = () => {
       <PWAUpdateBanner />
 
       <Routes>
+        {/* /app → Dashboard */}
         <Route path="/" element={<Dashboard />} />
         <Route path="/budget" element={<BudgetPage />} />
         <Route path="/savings" element={<SavingsPage />} />
@@ -90,7 +93,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppContent />
+        <Routes>
+          {/* Public landing page */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Main application — all routes under /app */}
+          <Route path="/app/*" element={<AppContent />} />
+
+          {/* Fallback */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

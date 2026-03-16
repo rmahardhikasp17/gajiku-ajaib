@@ -34,7 +34,7 @@ const Dashboard = () => {
             <h1 className="text-primary-foreground text-lg font-bold">GAJIKU</h1>
           </div>
           <Link
-            to="/notifications"
+            to="/app/notifications"
             className="relative flex h-10 w-10 items-center justify-center rounded-full bg-primary-foreground/10"
           >
             <Bell className="h-5 w-5 text-primary-foreground" />
